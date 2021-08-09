@@ -1,0 +1,37 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net5.0-windows10.0.19041.0</TargetFramework>
+    <Company>BUILDLet</Company>
+    <Authors>Daiki Sakamoto</Authors>
+    <Description>BUILDLet JBIG Image Converter</Description>
+    <Copyright>© 2021 Daiki Sakamoto</Copyright>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/buildlet/BUILDLet.JbigImageViewer</PackageProjectUrl>
+    <Product>BUILDLet JBIG Image Converter</Product>
+    <ApplicationIcon />
+    <StartupObject />
+    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="BUILDLet.Imaging.Jbig" Version="1.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="C:\Users\DaikiSakamoto\.nuget\packages\buildlet.imaging.jbig\1.0.0\contentFiles\any\net5.0-windows10.0.19041\jbig1.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="C:\Users\DaikiSakamoto\.nuget\packages\buildlet.imaging.jbig\1.0.0\contentFiles\any\net5.0-windows10.0.19041\jbigtopnm.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="C:\Users\DaikiSakamoto\.nuget\packages\buildlet.imaging.jbig\1.0.0\contentFiles\any\net5.0-windows10.0.19041\libnetpbm10.dll">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Update="C:\Users\DaikiSakamoto\.nuget\packages\buildlet.imaging.jbig\1.0.0\contentFiles\any\net5.0-windows10.0.19041\ppmtobmp.exe">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>
