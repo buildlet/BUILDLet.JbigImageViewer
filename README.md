@@ -6,7 +6,7 @@ Introduction
 
 This project provides the UWP (*Universal Windows Platform*) viewer app especially for **JBIG** (*Joint Bi-level Image experts Group*) image.
 
-![JBIG Image Viewer](./README/HomePage.png "JBIG Image Viewer")
+![JBIG Image Viewer](./README/ViewPage_v1.1.1.png "JBIG Image Viewer")
 
 Getting Started
 ---------------

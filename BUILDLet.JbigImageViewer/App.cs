@@ -28,31 +28,36 @@ using Windows.ApplicationModel.Activation;  // for overriding OnBackgroundActiva
 using Windows.ApplicationModel.AppService;  // for AppServiceConnection
 using Windows.ApplicationModel.Background;  // for BackgroundTaskDeferral
 using Windows.Foundation.Collections;       // for ValueSet
-using Windows.Storage.Streams;  // InMemoryRandomAccessStream
+using Windows.Storage;          // for ApplicationData
+using Windows.Storage.Streams;  // for InMemoryRandomAccessStream
 using Windows.UI.Core;  // for Dispatcher
 using Windows.UI.Xaml;
 using Windows.UI.Xaml.Media;  // for ImageSource
 using Windows.UI.Xaml.Media.Imaging;  // for BitmapImage
+
+using BUILDLet.Standard.Diagnostics;  // for DebugInfo
 
 namespace BUILDLet.JbigImageViewer
 {
     sealed partial class App : Application
     {
         // ViewModel
-        public ImageSourceViewModel ViewModel { get; set; } = new ImageSourceViewModel();
+        public ImageSourceViewModel ViewModel { get; set; } = new ImageSourceViewModel(5, 10);
 
 
-        // App Service Connection
+        // for App Service Connection
         private AppServiceConnection connection = null;
 
-        // Deferral (BackgroundTaskDeferral)
+        // for Deferral (BackgroundTaskDeferral)
         private BackgroundTaskDeferral task_deferral = null;
+
 
         // OnBackgroundActivated Event Handler
         protected override void OnBackgroundActivated(BackgroundActivatedEventArgs args)
         {
             // Call base method
             base.OnBackgroundActivated(args);
+
 
             // Case of AppServiceTriggerDetails
             if (args.TaskInstance.TriggerDetails is AppServiceTriggerDetails)
@@ -88,56 +93,93 @@ namespace BUILDLet.JbigImageViewer
             var deferral = args.GetDeferral();
 
 
+            // for Byte Array for Bitmap List
+            List<byte[]> bitmaps = new List<byte[]>();
+
             // Get Request Message
             var request_message = args.Request.Message;
 
-            // New Response Message
-            var response_message = new ValueSet();
+            // for Response Message
+            ValueSet response_message = null;
 
             // Check Message
             if (request_message.ContainsKey("Path"))
             {
-                // Set Response Message
-                response_message.Add("Path", this.ViewModel.FilePath);
+                // New Response Message
+                response_message = new ValueSet { { "Path", this.ViewModel.FilePath } };
+            }
+            else if (request_message.ContainsKey("BufferSize"))
+            {
+                // New Response Message
+                response_message = new ValueSet { { "BufferSize", this.ViewModel.BufferSize } };
+            }
+            else if (request_message.ContainsKey("PjlCommandLinesForNextPage"))
+            {
+                // New Response Message
+                response_message = new ValueSet { { "PjlCommandLinesForNextPage", this.ViewModel.PjlCommandLinesForNextPage } };
             }
             else if (request_message.ContainsKey("ImageSource"))
             {
-                // Get Bitmap as System.Drawing.Bitmap
+                // Get Byte Array for Bitmap and EOF Flag from Message
                 var bytes = request_message["ImageSource"] as byte[];
+                var eof = request_message.ContainsKey("EOF") ? (bool)request_message["EOF"] : true;
 
                 // Set ImageSource to ViewModel
-                await this.ViewModel.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                await this.ViewModel.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                 {
-                    this.ViewModel.SetBitmapImageAsync(bytes);
+                    // Add Bitmap Image to ViewModel
+                    await this.ViewModel.AddImageSourceAsync(bytes, eof);
                 });
 
-                // Set Response Message
-                response_message.Add("ImageSource", null);
+                // New Response Message
+                response_message = new ValueSet { { "ImageSource", null } };
+            }
+            else if (request_message.ContainsKey("ErrorMessage"))
+            {
+                // Set Error to ViewModel
+                await this.ViewModel.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                {
+                    // Set Error
+                    this.ViewModel.SetError(request_message["ErrorMessage"] as string);
+                });
             }
 
 
-            // Response
-            AppServiceResponseStatus response = AppServiceResponseStatus.Unknown;
+            // Send Message
+            if (response_message != null)
+            {
+                // for Response
+                AppServiceResponseStatus response = AppServiceResponseStatus.Unknown;
+
+                try
+                {
+                    // Send Response
+                    response = await args.Request.SendResponseAsync(response_message);
+                }
+                catch (Exception e)
+                {
+                    // Set Error to ViewModel
+                    await this.ViewModel.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, () =>
+                    {
+                        // Set Error
+                        this.ViewModel.SetError(e.Message);
+                    });
 
 
-            try
-            {
-                // Send Response
-                response = await args.Request.SendResponseAsync(response_message);
-            }
-            catch (Exception)
-            {
-                throw;
-            }
-            finally
-            {
+                    // Complete Deferral
+                    deferral.Complete();
+                }
+                finally
+                {
 #if DEBUG
-                Debug.WriteLine($"{nameof(JbigImageViewer)}.{nameof(App)}: Response = {response} (\"{response_message.Keys.First()}\")");
+                    Debug.WriteLine(" " + $"Response of SendResponseAsync(\"{string.Join(", ", response_message.Keys)}\") = {response}", DebugInfo.FullName);
 #endif
-
-                // Complete Deferral
-                deferral.Complete();
+                }
             }
+
+
+            // Complete Deferral
+            deferral.Complete();
         }
     }
 }

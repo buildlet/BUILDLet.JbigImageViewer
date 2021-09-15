@@ -64,6 +64,7 @@
     <GenerateTestArtifacts>True</GenerateTestArtifacts>
     <AppxBundlePlatforms>x86|x64|arm|arm64</AppxBundlePlatforms>
     <HoursBetweenUpdateChecks>0</HoursBetweenUpdateChecks>
+    <AppxPackageSigningTimestampServerUrl>http://timestamp.digicert.com</AppxPackageSigningTimestampServerUrl>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|ARM'">
     <DefaultLanguage>en-US</DefaultLanguage>
@@ -169,11 +170,9 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.20348.19" PrivateAssets="all" />
   </ItemGroup>
   <ItemGroup>
+    <ProjectReference Include="..\BUILDLet.JbigImageReader\BUILDLet.JbigImageReader.csproj" />
     <ProjectReference Include="..\BUILDLet.JbigImageViewer\BUILDLet.JbigImageViewer.csproj">
       <Targets>net5.0-windows10.0.19041.0</Targets>
-    </ProjectReference>
-    <ProjectReference Include="..\BUILDLet.JbigImageConverter\BUILDLet.JbigImageConverter.csproj">
-      <SetTargetFramework>TargetFramework=net5.0-windows10.0.19041.0</SetTargetFramework>
     </ProjectReference>
   </ItemGroup>
 </Project>

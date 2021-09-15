@@ -5,9 +5,12 @@ VisualStudioVersion = 16.0.31424.327
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BUILDLet.JbigImageViewer", "BUILDLet.JbigImageViewer\BUILDLet.JbigImageViewer.csproj", "{C3F8964A-BFEE-4C17-8263-899F56C68BFD}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BUILDLet.JbigImageConverter", "BUILDLet.JbigImageConverter\BUILDLet.JbigImageConverter.csproj", "{5CA76386-0ED9-4EC5-8D04-3F7ECD49ADC1}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BUILDLet.JbigImageReader", "BUILDLet.JbigImageReader\BUILDLet.JbigImageReader.csproj", "{5CA76386-0ED9-4EC5-8D04-3F7ECD49ADC1}"
 EndProject
 Project("{C7167F0D-BC9F-4E6E-AFE1-012C56B48DB5}") = "BUILDLet.JbigImageViewerAppPackage", "BUILDLet.JbigImageViewerAppPackage\BUILDLet.JbigImageViewerAppPackage.wapproj", "{6BD56527-24B2-4982-BC93-BE5CF3498689}"
+	ProjectSection(ProjectDependencies) = postProject
+		{5CA76386-0ED9-4EC5-8D04-3F7ECD49ADC1} = {5CA76386-0ED9-4EC5-8D04-3F7ECD49ADC1}
+	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

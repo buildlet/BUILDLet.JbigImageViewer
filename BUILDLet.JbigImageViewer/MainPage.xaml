@@ -18,7 +18,7 @@
         SelectionChanged="NavigationView_SelectionChanged">
 
         <NavigationView.MenuItems>
-            <NavigationViewItem Icon="Home" Content="Home" Tag="Home"/>
+            <NavigationViewItem Icon="View" Content="View" Tag="View"/>
         </NavigationView.MenuItems>
 
         <Frame x:Name="ContentFrame"/>
