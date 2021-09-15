@@ -13,7 +13,7 @@ Getting Started
 
 1. Download the certification file [BUILDLet.cer](./Certificate/BUILDLet.cer) to your computer.
 2. Import the downloaded certification file (*BUILDLet.cer*) into your *Trusted Root Certification Authorities* of *Local Machine*, if you can trust us.
-3. Download the installer package for your platform ([x86](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_x86_Test/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_x86.msix), [x64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_x64_Test/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_x64.msix), [ARM](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_ARM_Test/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_ARM.msix) or [ARM64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_ARM64_Test/BUILDLet.JbigImageViewerAppPackage_1.0.0.0_ARM64.msix)) on your computer, and execute it.
+3. Download the installer package for your platform ([x86](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x86_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x86.msix), [x64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x64.msix), [ARM](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM.msix) or [ARM64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM64.msix)) on your computer, and execute it.
 
 Trouble Shooting
 ----------------
@@ -29,6 +29,18 @@ Build and Test
 
 - This project (*Visual Studio Solution*) is built and tested on Visual Studio.
 - We did not tested our App on *ARM* Platform (including *ARM64*).
+
+Change History
+--------------
+
+- **v1.0.0** (August 9, 2021)
+  - 1st Release
+
+- **v1.1.1** (September 15th, 2021)
+  - Feature to save image(s) as bitmap file(s) was supported.
+  - Advanced feature for JBIG image as the following was supported.
+    - Remove unnecessary PJL command line in the file.
+    - Divide into multiple pages when the number of PJL command line exceeds than threshold.
 
 License
 -------
