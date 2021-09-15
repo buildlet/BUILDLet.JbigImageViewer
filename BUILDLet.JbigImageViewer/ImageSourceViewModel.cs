@@ -34,222 +34,412 @@ using Windows.Storage.Streams;   // for IRandomAccessStream
 using Windows.System.Profile;    // for AnalyticsInfo
 using Windows.ApplicationModel;  // for FullTrustProcessLauncher
 using Windows.UI.Core;  // for CoreDispatcher
+using Windows.UI;  // for Color
+using System.Runtime.InteropServices.WindowsRuntime;  // for AsBuffer
+using System.IO;
+using System.Diagnostics;  // for Debug
+
+using BUILDLet.Standard.Diagnostics;  // for DebugInfo
 
 namespace BUILDLet.JbigImageViewer
 {
     public class ImageSourceViewModel : INotifyPropertyChanged
     {
-        private string filename = "";
-        private string filepath = null;
-        private ImageSource source = null;
+        private bool error = false;
+        private string error_message = "";
+
+        private uint buffer_size_in_MB;
+
+        private readonly ApplicationDataCompositeValue settings;
+        private bool advanced_features;
+        private int max_pjl_command_lines;
+
+        private bool in_progress = false;
+        private int current_page_number = 0;
+
+        // Internal Image Source List
+        private readonly ImageSourceRawDataCollection source_data_collection;
+
 
         // Constructor
-        public ImageSourceViewModel()
+        public ImageSourceViewModel(uint defaultBufferSizeInKB, int defaultPjlCommandLinesForNextPage)
         {
-            this.OpenComamand = new OpenCommandContent(this);
-        }
-
-        // FileName
-        public string FileName
-        {
-            get => this.filename;
-            set
+            // Check Roaming Settings
+            if (ApplicationData.Current.RoamingSettings.Values.ContainsKey("BUILDLet.JbigImageViewer"))
             {
-                if (string.CompareOrdinal(value, this.filename) != 0)
-                {
-                    this.filename = value;
-                    this.On_PropertyChanged();
-                }
-            }
-        }
+                // Get Roaming Settings
+                this.settings = ApplicationData.Current.RoamingSettings.Values["BUILDLet.JbigImageViewer"] as ApplicationDataCompositeValue;
 
-        // FilePath
-        public string FilePath
-        {
-            get => this.filepath;
-            set
+                // Get Buffer Size
+                this.buffer_size_in_MB = (uint)(this.settings["BufferSize"] ?? defaultBufferSizeInKB);
+
+                // Get Advanced Features Options from Roaming Settings
+                this.advanced_features = (bool)(this.settings["AdvancedFeatures"] ?? false);
+                this.max_pjl_command_lines = (int)(this.settings["PjlCommandLinesForNextPage"] ?? defaultPjlCommandLinesForNextPage);
+            }
+            else
             {
-                if (string.CompareOrdinal(value, this.filepath) != 0)
-                {
-                    this.filepath = value;
-                    this.On_PropertyChanged();
-                }
-            }
-        }
+                // New Roaming Settings
+                this.settings = new ApplicationDataCompositeValue();
 
-        // ImageSource
-        public ImageSource ImageSource
-        {
-            get => this.source;
-            set
+                // Set Buffer Size (Default)
+                this.buffer_size_in_MB = defaultBufferSizeInKB;
+
+                // Set Advanced Features Options (Default)
+                this.advanced_features = false;
+                this.max_pjl_command_lines = defaultPjlCommandLinesForNextPage;
+            }
+
+            // New ImageSourceRawDataCollection (Set Buffer Size)
+            this.source_data_collection = new ImageSourceRawDataCollection(this.buffer_size_in_MB * 1000 * 1000);
+
+            // Register ReadFileStarted Event
+            this.ReadFileStarted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("FileName");
+            this.ReadFileStarted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("FilePath");
+            this.ReadFileStarted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("Pages");
+#if DEBUG
+            this.ReadFileStarted += (object sender, EventArgs e) =>
             {
-                this.source = value;
-                this.On_PropertyChanged();
-            }
+                Debug.WriteLine(" " + $"{nameof(ImageSourceViewModel)}.{nameof(ReadFileStarted)} Event is Called.", DebugInfo.FullName);
+            };
+#endif
+
+            // Register ReadFileCompleted Event
+            this.ReadFileCompleted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("FileName");
+            this.ReadFileCompleted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("FilePath");
+            this.ReadFileCompleted += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("Pages");
+#if DEBUG
+            this.ReadFileCompleted += (object sender, EventArgs e) =>
+            {
+                Debug.WriteLine(" " + $"{nameof(ImageSourceViewModel)}.{nameof(ReadFileCompleted)} Event is Called.", DebugInfo.FullName);
+            };
+#endif
+
+            // Register CurrentPageChanged Event
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("ImageSource");
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("CurrentPageEnabled");
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("NextPageEnabled");
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("PreviousPageEnabled");
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("NextPageArrowColor");
+            this.CurrentPageChanged += (object sender, EventArgs e) => this.RaisePropertyChangedEvent("PreviousPageArrowColor");
+#if DEBUG
+            this.CurrentPageChanged += (object sender, EventArgs e) =>
+            {
+                Debug.WriteLine(" " + $"{nameof(ImageSourceViewModel)}.{nameof(CurrentPageChanged)} Event is Called.", DebugInfo.FullName);
+            };
+#endif
         }
 
-        public event PropertyChangedEventHandler PropertyChanged;
 
-        protected void On_PropertyChanged([CallerMemberName] string propertyName = null)
-            => this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
-
-
-        // Dispatcher of HomePage
+        // Dispatcher for ViewPage
         public CoreDispatcher Dispatcher { get; set; }
 
 
-        // Set BitmapImage to Source from StorageFile
-        public async void SetBitmapImageAsync(StorageFile file)
+        // FileName
+        public string FileName => string.IsNullOrEmpty(this.FilePath) ? string.Empty : Path.GetFileName(this.FilePath);
+
+        // FilePath
+        public string FilePath { get; set; } = string.Empty;
+
+        // Pages
+        public int Pages => this.source_data_collection.Count;
+
+        // ImageSource
+        public ImageSource ImageSource =>
+            (this.source_data_collection.Count > 0 && this.current_page_number > 0)
+            ? this.source_data_collection.GetImageSourceAsync(this.current_page_number - 1).Result
+            : null;
+
+        // Current Page Enabled
+        public bool CurrentPageEnabled => (!this.InProgress) && (this.source_data_collection.Count > 0);
+
+        // Next Page Enabled
+        public bool NextPageEnabled => (!this.InProgress) && (this.current_page_number > 0) && (this.current_page_number < this.source_data_collection.Count);
+
+        // Previous Page Enabled
+        public bool PreviousPageEnabled => (!this.InProgress) && (this.current_page_number > 1) && (this.current_page_number <= this.source_data_collection.Count);
+
+        // Color of Arrow in Next Page Button
+        public Brush NextPageArrowColor => new SolidColorBrush(this.NextPageEnabled ? Colors.DimGray : Colors.LightGray);
+
+        // Color of Arrow in Previous Page Button
+        public Brush PreviousPageArrowColor => new SolidColorBrush(this.PreviousPageEnabled ? Colors.DimGray : Colors.LightGray);
+
+        // Current Page
+        public int CurrentPage
         {
-            // New BitmapImage
-            var bitmap = new BitmapImage();
-
-            // Read File Async
-            using (var stream = await file.OpenReadAsync())
+            get => this.current_page_number;
+            set
             {
-                // Set Image Source
-                await bitmap.SetSourceAsync(stream);
-            }
-
-            // Set BitmapImage
-            this.ImageSource = bitmap;
-        }
-
-
-        // Set BitmapImage to Source from byte[]
-        public async void SetBitmapImageAsync(byte[] bytes)
-        {
-            // New BitmapImage
-            var image = new BitmapImage();
-
-            // Convert byte[] to BitmapImage via InMemoryRandomAccessStream
-            using (var stream = new InMemoryRandomAccessStream())
-            {
-                using (var writer = new DataWriter(stream))
+                // Validation (Range)
+                if ((value == this.source_data_collection.Count) || (value > 0 && value <= this.source_data_collection.Count))
                 {
-                    writer.WriteBytes(bytes);
-                    await writer.StoreAsync();
-                    await writer.FlushAsync();
-                    writer.DetachStream();
-                }
-                stream.Seek(0);
-
-                // Set Image Source
-                await image.SetSourceAsync(stream);
-            }
-
-            // Set BitmapImage
-            this.ImageSource = image;
-        }
-
-
-        // Command Implementation
-
-        public ICommand OpenComamand { get; private set; }
-
-        private class OpenCommandContent : ICommand
-        {
-            public OpenCommandContent(ImageSourceViewModel viewModel)
-            {
-                // Set ViewModel
-                this.view_model = viewModel;
-
-                // Set Desktop Flag
-                this.desktop = (AnalyticsInfo.VersionInfo.DeviceFamily == "Windows.Desktop");
-            }
-
-
-            private readonly ImageSourceViewModel view_model;
-            private readonly bool desktop;
-            private bool can_execute = true;
-
-
-            // File Type(s) for FileOpenPicker
-            private static readonly string[] fileTypes = new string[]
-            {
-                    ".bmp",
-                    ".jpg",
-                    ".jpeg",
-                    ".png",
-                    ".gif"
-            };
-
-            // Additional File Type(s) only for Windows Desktop
-            private static readonly string[] fileTypes2 = new string[]
-            {
-                    ".jbg",
-                    ".jbig"
-            };
-
-
-            public event EventHandler CanExecuteChanged;
-
-            public bool CanExecute(object parameter) => this.can_execute;
-
-            public async void Execute(object parameter)
-            {
-                // Disable Control
-                this.can_execute = false;
-                this.CanExecuteChanged?.Invoke(this, EventArgs.Empty);
-
-
-                // New FileOpenPicker
-                var picker = new FileOpenPicker()
-                {
-                    ViewMode = PickerViewMode.Thumbnail,
-                    SuggestedStartLocation = PickerLocationId.PicturesLibrary
-                };
-
-                // Add File Type(s) to FileOpenPicker
-                OpenCommandContent.fileTypes.ToList().ForEach(type => picker.FileTypeFilter.Add(type));
-
-                // only for Desktop
-                if (desktop)
-                {
-                    // Add Additional File Type(s)
-                    OpenCommandContent.fileTypes2.ToList().ForEach(type => picker.FileTypeFilter.Add(type));
-                }
-
-
-                // Get File
-                var file = await picker.PickSingleFileAsync();
-
-
-                // Set Image Source
-                if (file != null)
-                {
-                    // Clear Image
-                    this.view_model.ImageSource = null;
-
-                    // Set ViewModel (File Name & Path)
-                    this.view_model.FileName = file.Name;
-                    this.view_model.FilePath = file.Path;
-
-                    // Check if FileTypes or FileTypes2
-                    if (OpenCommandContent.fileTypes2.Any(type => string.Compare(type, file.FileType, true) == 0))
+                    if (value != this.current_page_number)
                     {
-                        // Case of FileTypes2:
+                        // Set value and Raise Event
+                        this.current_page_number = value;
 
-                        // Get Dispatcher
-                        this.view_model.Dispatcher = parameter as CoreDispatcher;
-
-                        // Launch JbigImageConverter.exe
-                        await FullTrustProcessLauncher.LaunchFullTrustProcessForCurrentAppAsync();
-                    }
-                    else
-                    {
-                        // Case of FileTypes:
-
-                        // Set ViewModel (ImageSource)
-                        this.view_model.SetBitmapImageAsync(file);
+                        // Raise CurrentPageChanged Event
+                        this.CurrentPageChanged?.Invoke(this, EventArgs.Empty);
                     }
                 }
 
-
-                // Enable Control
-                this.can_execute = true;
-                this.CanExecuteChanged?.Invoke(this, EventArgs.Empty);
+                // [IMPORTANT]
+                // ALWAYS Raise PropertyChangedEvent Event of "CurrentPage" Property
+                this.RaisePropertyChangedEvent();
             }
+        }
+
+        // In Progress
+        public bool InProgress
+        {
+            get => this.in_progress;
+            set
+            {
+                if (value != this.in_progress)
+                {
+                    // Set value and Raise Event
+                    this.in_progress = value;
+                    this.RaisePropertyChangedEvent();
+                }
+            }
+        }
+
+
+        // Error
+        public bool Error
+        {
+            get => this.error;
+            set
+            {
+                // Always set value and raise event
+                this.error = value;
+                this.RaisePropertyChangedEvent();
+            }
+        }
+
+        // Error Message
+        public string ErrorMessage
+        {
+            get => this.error_message;
+            set
+            {
+                if (string.Compare(value, this.error_message, true) != 0)
+                {
+                    this.error_message = value;
+                    this.RaisePropertyChangedEvent();
+                }
+            }
+        }
+
+
+        // Buffer Size (MB)
+        public uint BufferSize
+        {
+            get => this.buffer_size_in_MB;
+            set
+            {
+                if (value != this.buffer_size_in_MB)
+                {
+                    // Set value and Raise Event
+                    this.buffer_size_in_MB = value;
+                    this.RaisePropertyChangedEvent();
+
+                    // Save Buffer Size to Roaming Settings
+                    this.settings["BufferSize"] = this.buffer_size_in_MB;
+
+                    // Save settings to ApplicationDataCompositeValue
+                    ApplicationData.Current.RoamingSettings.Values["BUILDLet.JbigImageViewer"] = this.settings;
+                }
+            }
+        }
+
+        // Advanced Features option
+        public bool AdvancedFeatures
+        {
+            get => this.advanced_features;
+            set
+            {
+                if (value != this.advanced_features)
+                {
+                    // Set value and Raise Event
+                    this.advanced_features = value;
+                    this.RaisePropertyChangedEvent();
+
+                    // Save Advanced Features option to Roaming Settings
+                    this.settings["AdvancedFeatures"] = this.advanced_features;
+
+                    // Save settings to ApplicationDataCompositeValue
+                    ApplicationData.Current.RoamingSettings.Values["BUILDLet.JbigImageViewer"] = this.settings;
+                }
+            }
+        }
+
+        // Number of PJL Command Lines to find the Next Page
+        public int PjlCommandLinesForNextPage
+        {
+            get => this.max_pjl_command_lines;
+            set
+            {
+                if (value != this.max_pjl_command_lines)
+                {
+                    // Set value and Raise Event
+                    this.max_pjl_command_lines = value;
+                    this.RaisePropertyChangedEvent();
+
+                    // Save PJL Command Lines to Roaming Settings
+                    this.settings["PjlCommandLinesForNextPage"] = this.max_pjl_command_lines;
+
+                    // Save settings to ApplicationDataCompositeValue
+                    ApplicationData.Current.RoamingSettings.Values["BUILDLet.JbigImageViewer"] = this.settings;
+                }
+            }
+        }
+
+
+        // PropertyChanged Event
+        public event PropertyChangedEventHandler PropertyChanged;
+
+
+        // Current Page Changed Event
+        public event EventHandler CurrentPageChanged;
+
+        // Read File Started / Completed Event(s)
+        public event EventHandler ReadFileStarted;
+        public event EventHandler ReadFileCompleted;
+
+
+        // Raise PropertyChanged Event
+        protected void RaisePropertyChangedEvent([CallerMemberName] string propertyName = null) => this.PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+
+
+        // Raw Data of ImageSource (Current Page)
+        public byte[] RawData => this.source_data_collection[this.current_page_number - 1];
+
+        // Get Raw Data of Page
+        public byte[] GetRawData(int page) => this.source_data_collection[page - 1];
+
+
+        // Add BitmapImage from StorageFile
+        public async Task AddImageSourceAsync(StorageFile file)
+        {
+#if DEBUG
+            Debug.WriteLine(" " + "Start", DebugInfo.FullName);
+#endif
+            try
+            {
+                // Add Image Source
+                await this.source_data_collection.AddImageSourceAsync(file);
+            }
+            catch (Exception e)
+            {
+                // Set Error
+                this.SetError(e.Message);
+            }
+
+            // End Read Image File
+            this.EndReadImageFile();
+
+            // Reset Current Page to 1
+            this.CurrentPage = 1;
+
+#if DEBUG
+            Debug.WriteLine(" " + "End", DebugInfo.FullName);
+#endif
+        }
+
+
+        // Add BitmapImage from byte array
+        public async Task AddImageSourceAsync(byte[] bytes, bool updateUI = true)
+        {
+#if DEBUG
+            Debug.WriteLine(" " + "Start", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+#endif
+            try
+            {
+                // Add Raw Data
+                await this.source_data_collection.AddImageSourceRawDataAsync(bytes);
+            }
+            catch (Exception e)
+            {
+                // Set Error
+                this.SetError(e.Message);
+            }
+
+#if DEBUG
+            Debug.WriteLine(" " + "Before Raise Event(s) for UI (XAML)", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+#endif
+
+            if (updateUI)
+            {
+                // End Read Image File
+                this.EndReadImageFile();
+
+                // Reset Current Page to 1
+                this.CurrentPage = 1;
+            }
+
+#if DEBUG
+            Debug.WriteLine(" " + "End", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+#endif
+        }
+
+
+        // Clear Image
+        public void ClearImage()
+        {
+            // Clear Internal Image List
+            this.source_data_collection.Clear();
+
+            // Reset Current Page to 0
+            this.CurrentPage = 0;
+        }
+
+
+        // Begin Read Image File
+        public void BeginReadImageFile()
+        {
+            // Set In Progress
+            this.InProgress = true;
+
+            // Raise ReadFileStarted Event
+            this.ReadFileStarted?.Invoke(this, EventArgs.Empty);
+        }
+
+
+        // End Read Image File
+        public void EndReadImageFile()
+        {
+            // Unset In Progress
+            this.InProgress = false;
+
+            // Raise ReadFileCompleted Event
+            this.ReadFileCompleted?.Invoke(this, EventArgs.Empty);
+        }
+
+
+        // Set Error
+        public void SetError(string message)
+        {
+            // Set Error
+            this.Error = true;
+
+            // Set Error Message
+            this.ErrorMessage = message;
+
+            // End Read Image File
+            this.EndReadImageFile();
+        }
+
+
+        // Clear Error
+        public void ClearError()
+        {
+            // Unset Error
+            this.Error = false;
+
+            // Clear Error Message
+            this.ErrorMessage = "";
         }
     }
 }

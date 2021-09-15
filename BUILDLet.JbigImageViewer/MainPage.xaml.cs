@@ -51,7 +51,7 @@ namespace BUILDLet.JbigImageViewer
         // List of Pages
         private readonly List<(string Tag, Type PageType)> Pages = new List<(string Tag, Type PageType)>
         {
-            ("Home", typeof(HomePage))
+            ("View", typeof(ViewPage))
         };
 
 
@@ -69,7 +69,7 @@ namespace BUILDLet.JbigImageViewer
             this.NavigationView.SelectedItem = this.NavigationView.MenuItems[0];
 
             // Navigate (Initial)
-            this.Navigate_To("Home", new EntranceNavigationTransitionInfo());
+            this.Navigate_To("View", new EntranceNavigationTransitionInfo());
         }
 
 

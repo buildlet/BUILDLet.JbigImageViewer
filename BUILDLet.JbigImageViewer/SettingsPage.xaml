@@ -5,15 +5,44 @@
     xmlns:local="using:BUILDLet.JbigImageViewer"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    xmlns:controls="using:Microsoft.UI.Xaml.Controls"
     mc:Ignorable="d"
     Background="{ThemeResource ApplicationPageBackgroundThemeBrush}">
+    <Page.Resources>
+        <local:BooleanToVisibilityConverter x:Key="VisibilityConverter"/>
+    </Page.Resources>
 
     <StackPanel>
         <TextBlock
             Text="Settings"
             FontSize="20"
             Margin="10,33,10,10"/>
-        
+
+        <controls:NumberBox
+            Header="Buffer Size (MB) :"
+            PlaceholderText="MB"
+            HorizontalAlignment="Left"
+            SpinButtonPlacementMode="Inline"
+            Width="200"
+            Margin="10,10,10,10"
+            Minimum="1"
+            Value="{x:Bind ((local:App)local:App.Current).ViewModel.BufferSize, Mode=TwoWay}"/>
+
+        <ToggleSwitch
+            Header="Advanced Features"
+            Margin="10,10,10,10"
+            IsOn="{x:Bind ((local:App)local:App.Current).ViewModel.AdvancedFeatures, Mode=TwoWay}"/>
+
+        <controls:NumberBox
+            Header="Number of PJL Command Lines to Find the Next Page:"
+            HorizontalAlignment="Left"
+            SpinButtonPlacementMode="Inline"
+            Width="450"
+            Margin="10,10,10,10"
+            Minimum="0"
+            Value="{x:Bind ((local:App)local:App.Current).ViewModel.PjlCommandLinesForNextPage, Mode=TwoWay}"
+            Visibility="{x:Bind ((local:App)local:App.Current).ViewModel.AdvancedFeatures, Mode=OneWay, Converter={StaticResource VisibilityConverter}}"/>
+
         <Button
             x:Name="VersionInformationButton"
             Content="Version Information"
