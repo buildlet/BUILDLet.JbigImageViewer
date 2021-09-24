@@ -28,11 +28,5 @@ namespace BUILDLet.JbigImageReader
 
         // PJL Command Line Starting Text
         public static string CommandLineStartText { get; } = "@PJL";
-
-        // File Starting Line Text: "\x1B%-12345X@PJL\r\n" (w/o Line Break Code)
-        public static string FileStartLineText { get; } = IdentifierText + CommandLineStartText;
-
-        // File Ending Line Text: "\x1B%-12345X\r\n" (w/o Line Break Code)
-        public static string FileEndLineText { get; } = IdentifierText;
     }
 }

@@ -13,7 +13,7 @@ Getting Started
 
 1. Download the certification file [BUILDLet.cer](./Certificate/BUILDLet.cer) to your computer.
 2. Import the downloaded certification file (*BUILDLet.cer*) into your *Trusted Root Certification Authorities* of *Local Machine*, if you can trust us.
-3. Download the installer package for your platform ([x86](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x86_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x86.msix), [x64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_x64.msix), [ARM](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM.msix) or [ARM64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.1.0_ARM64.msix)) on your computer, and execute it.
+3. Download the installer package for your platform ([x86](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_x86_Test/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_x86.msix), [x64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_x64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_x64.msix), [ARM](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_ARM_Test/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_ARM.msix) or [ARM64](./BUILDLet.JbigImageViewerAppPackage/AppPackages/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_ARM64_Test/BUILDLet.JbigImageViewerAppPackage_1.1.2.0_ARM64.msix)) on your computer, and execute it.
 
 Trouble Shooting
 ----------------
@@ -41,6 +41,12 @@ Change History
   - Advanced feature for JBIG image as the following was supported.
     - Remove unnecessary PJL command line in the file.
     - Divide into multiple pages when the number of PJL command line exceeds than threshold.
+
+- **v1.1.2** (September 24th, 2021)
+  - Default buffer size is changed from 5 to 10 MB.
+  - Internal algorithm to remove unneeded text data from the image, which consists of multiple pages, was changed. So, as a result of it, the following defects were fixed.
+    - When consecutive 0x40 ('@') was found invelved in the image, PJL command line could not be correctly removed. So as a result of this, the page was not shown, instead of it, ERROR was shown.
+    - When string of "\x1B%-12345X" was found involved in the image, these texts were not removed. So as a result of this, the page was not shown, instead of it, ERROR was shown.
 
 License
 -------

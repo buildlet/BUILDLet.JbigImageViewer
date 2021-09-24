@@ -13,11 +13,11 @@
     <ApplicationIcon />
     <StartupObject />
     <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
-    <Version>1.1.1</Version>
+    <Version>1.1.2</Version>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BUILDLet.Imaging.Jbig" Version="1.1.1" />
+    <PackageReference Include="BUILDLet.Imaging.Jbig" Version="1.1.2" />
     <PackageReference Include="BUILDLet.Standard.Diagnostics" Version="1.6.6" />
   </ItemGroup>
 
