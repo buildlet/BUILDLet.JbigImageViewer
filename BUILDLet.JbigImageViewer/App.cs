@@ -42,7 +42,7 @@ namespace BUILDLet.JbigImageViewer
     sealed partial class App : Application
     {
         // ViewModel
-        public ImageSourceViewModel ViewModel { get; set; } = new ImageSourceViewModel(5, 10);
+        public ImageSourceViewModel ViewModel { get; set; } = new ImageSourceViewModel(10, 10);
 
 
         // for App Service Connection
@@ -99,6 +99,12 @@ namespace BUILDLet.JbigImageViewer
             // Get Request Message
             var request_message = args.Request.Message;
 
+#if DEBUG
+            var request_message_values = new List<string>();
+            foreach (var key in request_message.Keys) { request_message_values.Add($"\"{key}\"={request_message[key] ?? "(null)"}"); }
+            Debug.WriteLine($"Receive AppServiceRequest Message({string.Join(", ", request_message_values)})", DebugInfo.FullName);
+#endif
+
             // for Response Message
             ValueSet response_message = null;
 
@@ -122,17 +128,22 @@ namespace BUILDLet.JbigImageViewer
             {
                 // Get Byte Array for Bitmap and EOF Flag from Message
                 var bytes = request_message["ImageSource"] as byte[];
+                var index = request_message.ContainsKey("Index") ? (int)request_message["Index"] : 0;
                 var eof = request_message.ContainsKey("EOF") ? (bool)request_message["EOF"] : true;
 
                 // Set ImageSource to ViewModel
                 await this.ViewModel.Dispatcher.RunAsync(CoreDispatcherPriority.Normal, async () =>
                 {
                     // Add Bitmap Image to ViewModel
-                    await this.ViewModel.AddImageSourceAsync(bytes, eof);
+                    await this.ViewModel.AddImageSourceAsync(bytes, index, eof);
                 });
 
                 // New Response Message
-                response_message = new ValueSet { { "ImageSource", null } };
+                response_message = new ValueSet {
+                    { "ImageSource", null },
+                    { "Index", index },
+                    { "EOF", eof }
+                };
             }
             else if (request_message.ContainsKey("ErrorMessage"))
             {
@@ -172,7 +183,9 @@ namespace BUILDLet.JbigImageViewer
                 finally
                 {
 #if DEBUG
-                    Debug.WriteLine(" " + $"Response of SendResponseAsync(\"{string.Join(", ", response_message.Keys)}\") = {response}", DebugInfo.FullName);
+                    var response_message_values = new List<string>();
+                    foreach (var key in response_message.Keys) { response_message_values.Add($"\"{key}\"={response_message[key]??"null"}"); }
+                    Debug.WriteLine($"Response of SendResponseAsync({string.Join(", ", response_message_values)}) = {response}", DebugInfo.FullName);
 #endif
                 }
             }

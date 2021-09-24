@@ -326,6 +326,7 @@ namespace BUILDLet.JbigImageViewer
 #if DEBUG
             Debug.WriteLine(" " + "Start", DebugInfo.FullName);
 #endif
+
             try
             {
                 // Add Image Source
@@ -350,11 +351,12 @@ namespace BUILDLet.JbigImageViewer
 
 
         // Add BitmapImage from byte array
-        public async Task AddImageSourceAsync(byte[] bytes, bool updateUI = true)
+        public async Task AddImageSourceAsync(byte[] bytes, int index, bool eof = true)
         {
 #if DEBUG
-            Debug.WriteLine(" " + "Start", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+            Debug.WriteLine(" " + "Start", DebugInfo.FullName + $"({nameof(index)}={index}, {nameof(eof)}={eof})");
 #endif
+
             try
             {
                 // Add Raw Data
@@ -367,10 +369,10 @@ namespace BUILDLet.JbigImageViewer
             }
 
 #if DEBUG
-            Debug.WriteLine(" " + "Before Raise Event(s) for UI (XAML)", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+            Debug.WriteLine(" " + "Before Raise Event(s) for UI (XAML)", DebugInfo.FullName + $"({nameof(index)}={index}, {nameof(eof)}={eof})");
 #endif
 
-            if (updateUI)
+            if (eof)
             {
                 // End Read Image File
                 this.EndReadImageFile();
@@ -380,7 +382,7 @@ namespace BUILDLet.JbigImageViewer
             }
 
 #if DEBUG
-            Debug.WriteLine(" " + "End", DebugInfo.FullName + $"({nameof(updateUI)}={updateUI})");
+            Debug.WriteLine(" " + "End", DebugInfo.FullName + $"({nameof(index)}={index}, {nameof(eof)}={eof})");
 #endif
         }
 

@@ -96,32 +96,42 @@ namespace BUILDLet.JbigImageReader
                 try
                 {
                     // Get Bitmap from JBIG file
-                    if (advanced)
+                    try
                     {
-                        // Advanced Features is ON:
-
-                        // Send Message ("PjlCommandLinesForNextPage" = null)
-                        if ((response = await SendMessageAsync(new ValueSet { { "PjlCommandLinesForNextPage", null } })).Status != AppServiceResponseStatus.Success)
-                        {
-                            // RETURN false
-                            return false;
-                        }
-
-                        // Get Number of PJL Command Lines
-                        var pjl_command_lines = (int)response.Message["PjlCommandLinesForNextPage"];
-
-                        // New PrnFile Parser
-                        PrnFileParser prnFile = new(pjl_command_lines, new char[] { '\r', '\n' });
-
-                        // Add Bitmap Image(s) from a Spool file read as multiple JBIG image(s)
-                        prnFile.ReadAsJbigImages(filepath).ForEach(bytes => bitmaps.Add(JbigImage.ToBitmap(bytes, (int)buffer_size_in_MB * 1000 * 1000)));
-                    }
-                    else
-                    {
-                        // Advanced Features is OFF:
+                        // At first, try to read as plain JBIG file, even if Advanced Feature is enabled;
 
                         // Add Bitmap Image from a Spool file read as a simple JBIG file
                         bitmaps.Add(JbigImage.ToBitmap(filepath, (int)buffer_size_in_MB * 1000 * 1000));
+                    }
+                    catch (Exception)
+                    {
+                        if (advanced)
+                        {
+                            // Advanced Features is ON:
+
+                            // Send Message ("PjlCommandLinesForNextPage" = null)
+                            if ((response = await SendMessageAsync(new ValueSet { { "PjlCommandLinesForNextPage", null } })).Status != AppServiceResponseStatus.Success)
+                            {
+                                // RETURN false
+                                return false;
+                            }
+
+                            // Get Number of PJL Command Lines
+                            var pjl_command_lines = (int)response.Message["PjlCommandLinesForNextPage"];
+
+                            // New PrnFile Parser
+                            PrnFileParser prnFile = new(pjl_command_lines, new char[] { '\r', '\n' });
+
+                            // Add Bitmap Image(s) from a Spool file read as multiple JBIG image(s)
+                            prnFile.ReadAsJbigImages(filepath).ForEach(bytes => bitmaps.Add(JbigImage.ToBitmap(bytes, (int)buffer_size_in_MB * 1000 * 1000)));
+                        }
+                        else
+                        {
+                            // Advanced Features is OFF:
+
+                            // Throw Exception
+                            throw;
+                        }
                     }
                 }
                 catch (Exception e)
@@ -142,6 +152,7 @@ namespace BUILDLet.JbigImageReader
                         // New Message
                         var message = new ValueSet {
                             { "ImageSource", stream.ToArray() },
+                            { "Index", i },
                             { "EOF", i >= (bitmaps.Count - 1) }
                         };
 
@@ -172,6 +183,12 @@ namespace BUILDLet.JbigImageReader
 
             try
             {
+#if DEBUG
+                var message_values = new List<string>();
+                foreach (var key in message.Keys) { message_values.Add($"\"{key}\"={message[key] ?? "null"}"); }
+                Debug.WriteLine($"SendMessageAsync({string.Join(", ", message_values)})", DebugInfo.FullName);
+#endif
+
                 // Send Message
                 response = await this.connection.SendMessageAsync(message);
             }
@@ -182,7 +199,9 @@ namespace BUILDLet.JbigImageReader
             finally
             {
 #if DEBUG
-                Debug.WriteLine($"Response of SendMessageAsync(\"{string.Join("\", \"", message.Keys)}\") = {response.Status}", DebugInfo.FullName);
+                var message_values = new List<string>();
+                foreach (var key in message.Keys) { message_values.Add($"\"{key}\"={message[key]??"null"}"); }
+                Debug.WriteLine($"Response of SendMessageAsync({string.Join(", ", message_values)}) = {response.Status}", DebugInfo.FullName);
 #endif
             }
 

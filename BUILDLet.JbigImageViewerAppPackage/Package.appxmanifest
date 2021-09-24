@@ -10,7 +10,7 @@
   <Identity
     Name="3af883b8-c069-4c28-a468-3342416994d0"
     Publisher="CN=BUILDLet, O=BUILDLet, C=JP"
-    Version="1.1.1.0" />
+    Version="1.1.2.0" />
 
   <Properties>
     <DisplayName>BUILDLet JBIG Image Viewer</DisplayName>

@@ -32,64 +32,96 @@ namespace BUILDLet.JbigImageReader
 {
     public class PjlParser
     {
-        private readonly string fileStartLineText;
-        private readonly string fileEndLineText;
-
-
-        // Constructor
-        public PjlParser(char[] brCode)
-        {
-            this.LineBreakCode = brCode;
-            this.fileStartLineText = PJL.FileStartLineText + new string(this.LineBreakCode);
-            this.fileEndLineText = PJL.FileEndLineText + new string(this.LineBreakCode);
-        }
-
-
         // Line Break Code
-        public char[] LineBreakCode { get; }
+        public static char[] DefaultLineBreakCode { get; } = new char[] { '\r', '\n' };
 
 
-        // Try to Read File Start Line
-        public bool TryReadFileStartLine(Stream stream)
+        // Try Read PJL Identifier Text (w/o Line Break Code)
+        public static bool TryReadPjlIdentifierText(Stream stream, byte first, out byte[] buffer, out byte next)
         {
-            // buffer for File Start Line
-            var header = new byte[this.fileStartLineText.Length];
+            // Buffer for Fragments
+            List<byte> fragments = new();
 
-            // Read Start Line
-            return (stream.Read(header) == this.fileStartLineText.Length) && (string.Compare(this.fileStartLineText, Encoding.ASCII.GetString(header)) == 0);
-        }
+            // Set index to 0
+            var index = 0;
 
-
-        // Try to Read as PJL Command Line
-        public bool TryReadAsPjlCommandLine(Stream stream, byte first, out byte[] buffer)
-        {
-            // Buffer(s)
-            List<byte> command_line_buffer = new();
-            List<byte> bytes = new();
-
-            // Line Break Index
-            var br_index = 0;
-
-            // Set 1st Byte
-            var read_byte = first;
+            // Set 1st byte
+            next = first;
 
             // Main Roop
             while (stream.Position < stream.Length)
             {
-                // Check PJL Text
-                if (command_line_buffer.Count < PJL.CommandLineStartText.Length)
+                // Add Read Byte to Fragment Buffer
+                fragments.Add(next);
+
+                // Keep Current Byte
+                var current = next;
+
+                // Read Next Byte
+                next = (byte)stream.ReadByte();
+
+                // Check 1st Byte of PJL Text
+                if (current == PJL.IdentifierText[index++])
+                {
+                    // Check Length of PJL Text
+                    if (index < PJL.IdentifierText.Length)
+                    {
+                        // Continue
+                        continue;
+                    }
+
+#if DEBUG
+                    Debug.WriteLine($"PJL Identifier Text \"{PJL.IdentifierText}\" was found.", DebugInfo.FullName);
+#endif
+                }
+
+                // Break
+                break;
+            }
+            // Main Roop
+
+            // Set Buffer
+            buffer = fragments.ToArray();
+
+            // RETURN
+            return (index >= PJL.IdentifierText.Length);
+        }
+
+
+        // Try to Read PJL Command Line
+        public static bool TryReadPjlCommandLine(Stream stream, byte first, out byte[] buffer, out byte next, char[] brCode = null)
+        {
+            // Check Line Break Code
+            brCode ??= PjlParser.DefaultLineBreakCode;
+
+            // Buffer(s)
+            List<byte> valid_command_line_buffer = new();
+            List<byte> invalid_fragment_buffer = new();
+
+            // Set Line Break Index to 0
+            var br_index = 0;
+
+            // Set 1st Byte
+            next = first;
+
+            // Main Roop
+            while (stream.Position < stream.Length)
+            {
+                // Check Length of PJL Text
+                if (valid_command_line_buffer.Count < PJL.CommandLineStartText.Length)
                 {
                     // xxxxxxxxxx@PJLxxxxxxxxxx
                     // <-   Here   ->|
 
-                    if (read_byte == PJL.CommandLineStartText[command_line_buffer.Count])
+                    // Check 1st Byte of PJL Text
+                    if (next == PJL.CommandLineStartText[valid_command_line_buffer.Count])
                     {
                         // xxxxxxxxxx@PJLxxxxxxxxxx
                         //        ->|    |<-
                         //           Here
 
                         // Add to PJL Command Line Buffer
-                        command_line_buffer.Add(read_byte);
+                        valid_command_line_buffer.Add(next);
                     }
                     else
                     {
@@ -98,13 +130,12 @@ namespace BUILDLet.JbigImageReader
                         //
                         //            or
                         //
-                        // xxxxxxxxxx@PALxxxxxxxxxx
+                        // xxxxxxxxxx@PZLxxxxxxxxxx
                         //             ^
                         //           Here
 
                         // Add PJL Command Line Buffer & Read Byte to Read Byte Buffer
-                        bytes.AddRange(command_line_buffer);
-                        bytes.Add(read_byte);
+                        invalid_fragment_buffer.AddRange(valid_command_line_buffer);
 
                         // Break
                         break;
@@ -115,118 +146,58 @@ namespace BUILDLet.JbigImageReader
                     // xxxxxxxxxx@PJLxxxxxxxxxx
                     //              |<- Here ->
 
-                    if ((read_byte >= 0x20) && (read_byte <= 0x7e))
+                    if ((next >= 0x20) && (next <= 0x7e))
                     {
                         // @PJLxxxxxxxx\r\n
                         //    |<-    ->|
                         //       Here
 
                         // Add to PJL Command Line Buffer
-                        command_line_buffer.Add(read_byte);
+                        valid_command_line_buffer.Add(next);
                     }
-                    else if (read_byte == this.LineBreakCode[0])
+                    else if (next == brCode[br_index])
                     {
                         // @PJLxxxxxxxx\r\n
-                        //              ^
+                        //           ->|   |<-
                         //             Here
 
                         // Add to PJL Command Line Buffer
-                        command_line_buffer.Add(read_byte);
+                        valid_command_line_buffer.Add(next);
 
                         // Increment Line Break Index
-                        br_index++;
-                    }
-                    else if ((read_byte == this.LineBreakCode[1]) && (br_index > 0))
-                    {
-                        // @PJLxxxxxxxx\r\n
-                        //                ^
-                        //               Here
-
-                        // Add to PJL Command Line Buffer
-                        command_line_buffer.Add(read_byte);
-
+                        if (++br_index >= brCode.Length)
+                        {
 #if DEBUG
-                        Debug.WriteLine($"PJL Command Line \"{Encoding.ASCII.GetString(command_line_buffer.ToArray())}\" is found.", DebugInfo.FullName);
+                            Debug.WriteLine(
+                                $"PJL Command Line \"" +
+                                $"{Encoding.ASCII.GetString(valid_command_line_buffer.ToArray()).Replace("\r", "\\r").Replace("\n", "\\n")}" +
+                                $"\" was found.", DebugInfo.FullName);
 #endif
 
-                        // Break
-                        break;
+                            // Read Next Byte to be Returned
+                            next = (byte)stream.ReadByte();
+
+                            // Break
+                            break;
+                        }
                     }
                     else
                     {
                         // Add PJL Command Line Buffer & Read Byte to Read Byte Buffer
-                        bytes.AddRange(command_line_buffer);
-                        bytes.Add(read_byte);
+                        invalid_fragment_buffer.AddRange(valid_command_line_buffer);
 
                         // Break
                         break;
                     }
                 }
 
-                // Read Byte from Stream
-                read_byte = (byte)stream.ReadByte();
+                // Read Next Byte
+                next = (byte)stream.ReadByte();
             }
             // Main Roop
 
-            // Set Read Bytes
-            buffer = bytes.Count > 0 ? bytes.ToArray() : null;
-
-            // RETURN Result
-            return buffer is null;
-        }
-
-
-        // Try to Read as File End Line
-        public bool TryReadAsFileEndLine(Stream stream, byte first, out byte[] buffer)
-        {
-            // Buffer(s)
-            List<byte> file_end_line_buffer = new();
-            List<byte> bytes = new();
-
-            // Set 1st Byte
-            var read_byte = first;
-
-            // Main Roop
-            while (stream.Position < stream.Length)
-            {
-                // Check File Ending Text
-                if (read_byte == PJL.FileEndLineText[file_end_line_buffer.Count])
-                {
-                    // Add to File Ending Line Buffer
-                    file_end_line_buffer.Add(read_byte);
-
-                    // Check Length
-                    if (file_end_line_buffer.Count == PJL.FileEndLineText.Length)
-                    {
-                        // Match File Ending Line:
-                        
-#if DEBUG
-                        Debug.WriteLine($"File End Line \"{Encoding.ASCII.GetString(file_end_line_buffer.ToArray())}\" is found.", DebugInfo.FullName);
-#endif
-
-                        // Break
-                        break;
-                    }
-                }
-                else
-                {
-                    // NOT Match to File Ending Line:
-
-                    // Add PJL Command Line Buffer & Read Byte to Read Byte Buffer
-                    bytes.AddRange(file_end_line_buffer);
-                    bytes.Add(read_byte);
-
-                    // Break
-                    break;
-                }
-
-                // Read Byte from Stream
-                read_byte = (byte)stream.ReadByte();
-            }
-            // Main Roop
-
-            // Set Read Bytes
-            buffer = bytes.Count > 0 ? bytes.ToArray() : null;
+            // Set Read Bytes to be Returned
+            buffer = invalid_fragment_buffer.Count > 0 ? invalid_fragment_buffer.ToArray() : null;
 
             // RETURN Result
             return buffer is null;
